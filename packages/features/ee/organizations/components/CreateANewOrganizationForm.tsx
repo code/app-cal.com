@@ -13,7 +13,7 @@ import { telemetryEventTypes, useTelemetry } from "@calcom/lib/telemetry";
 import { UserPermissionRole } from "@calcom/prisma/enums";
 import { trpc } from "@calcom/trpc/react";
 import type { Ensure } from "@calcom/types/utils";
-import { Alert, Button, Form, RadioGroup as RadioArea, TextField } from "@calcom/ui";
+import { Alert, Button, Form, Label, RadioGroup as RadioArea, TextField, ToggleGroup } from "@calcom/ui";
 
 function extractDomainFromEmail(email: string) {
   let out = "";
@@ -32,7 +32,17 @@ export const CreateANewOrganizationForm = () => {
   return <CreateANewOrganizationFormChild session={session} />;
 };
 
-const CreateANewOrganizationFormChild = ({ session }: { session: Ensure<SessionContextValue, "data"> }) => {
+enum BillingPeriod {
+  MONTHLY = "MONTHLY",
+  ANNUALLY = "ANNUALLY",
+}
+
+const CreateANewOrganizationFormChild = ({
+  session,
+}: {
+  session: Ensure<SessionContextValue, "data">;
+  isPlatformOrg?: boolean;
+}) => {
   const { t } = useLocale();
   const router = useRouter();
   const telemetry = useTelemetry();
@@ -42,11 +52,13 @@ const CreateANewOrganizationFormChild = ({ session }: { session: Ensure<SessionC
   const newOrganizationFormMethods = useForm<{
     name: string;
     seats: number;
+    billingPeriod: BillingPeriod;
     pricePerSeat: number;
     slug: string;
     orgOwnerEmail: string;
   }>({
     defaultValues: {
+      billingPeriod: BillingPeriod.MONTHLY,
       slug: !isAdmin ? deriveSlugFromEmail(defaultOrgOwnerEmail) : undefined,
       orgOwnerEmail: !isAdmin ? defaultOrgOwnerEmail : undefined,
       name: !isAdmin ? deriveOrgNameFromEmail(defaultOrgOwnerEmail) : undefined,
@@ -100,6 +112,39 @@ const CreateANewOrganizationFormChild = ({ session }: { session: Ensure<SessionC
           {serverErrorMessage && (
             <div className="mb-4">
               <Alert severity="error" message={serverErrorMessage} />
+            </div>
+          )}
+          {isAdmin && (
+            <div className="mb-5">
+              <Controller
+                name="billingPeriod"
+                control={newOrganizationFormMethods.control}
+                render={({ field: { value, onChange } }) => (
+                  <>
+                    <Label htmlFor="billingPeriod">Billing Period</Label>
+                    <ToggleGroup
+                      isFullWidth
+                      id="billingPeriod"
+                      value={value}
+                      onValueChange={(e: BillingPeriod) => {
+                        if ([BillingPeriod.ANNUALLY, BillingPeriod.MONTHLY].includes(e)) {
+                          onChange(e);
+                        }
+                      }}
+                      options={[
+                        {
+                          value: "MONTHLY",
+                          label: "Monthly",
+                        },
+                        {
+                          value: "ANNUALLY",
+                          label: "Annually",
+                        },
+                      ]}
+                    />
+                  </>
+                )}
+              />
             </div>
           )}
           <Controller
@@ -282,13 +327,13 @@ const CreateANewOrganizationFormChild = ({ session }: { session: Ensure<SessionC
   );
 };
 
-function deriveSlugFromEmail(email: string) {
+export function deriveSlugFromEmail(email: string) {
   const domain = extractDomainFromEmail(email);
 
   return domain;
 }
 
-function deriveOrgNameFromEmail(email: string) {
+export function deriveOrgNameFromEmail(email: string) {
   const domain = extractDomainFromEmail(email);
 
   return domain.charAt(0).toUpperCase() + domain.slice(1);

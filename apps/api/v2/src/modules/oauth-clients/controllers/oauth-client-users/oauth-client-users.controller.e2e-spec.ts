@@ -1,6 +1,6 @@
 import { bootstrap } from "@/app";
 import { AppModule } from "@/app.module";
-import { DEFAULT_EVENT_TYPES } from "@/ee/event-types/constants/constants";
+import { DEFAULT_EVENT_TYPES } from "@/ee/event-types/event-types_2024_04_15/constants/constants";
 import { HttpExceptionFilter } from "@/filters/http-exception.filter";
 import { PrismaExceptionFilter } from "@/filters/prisma-exception.filter";
 import {
@@ -139,6 +139,8 @@ describe("OAuth Client Users Endpoints", () => {
       const requestBody: CreateManagedUserInput = {
         email: userEmail,
         timeZone: userTimeZone,
+        weekStart: "Monday",
+        timeFormat: 24,
       };
 
       const response = await request(app.getHttpServer())
@@ -158,6 +160,9 @@ describe("OAuth Client Users Endpoints", () => {
       expect(responseBody.status).toEqual(SUCCESS_STATUS);
       expect(responseBody.data).toBeDefined();
       expect(responseBody.data.user.email).toEqual(getOAuthUserEmail(oAuthClient.id, requestBody.email));
+      expect(responseBody.data.user.timeZone).toEqual(requestBody.timeZone);
+      expect(responseBody.data.user.weekStart).toEqual(requestBody.weekStart);
+      expect(responseBody.data.user.timeFormat).toEqual(requestBody.timeFormat);
       expect(responseBody.data.accessToken).toBeDefined();
       expect(responseBody.data.refreshToken).toBeDefined();
 

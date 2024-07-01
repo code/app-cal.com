@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { Controller, useFieldArray, useForm, useWatch } from "react-hook-form";
 
 import dayjs from "@calcom/dayjs";
@@ -62,6 +62,8 @@ export type CustomClassNames = {
   };
 };
 
+export type Availability = Pick<Schedule, "days" | "startTime" | "endTime">;
+
 type AvailabilitySettingsProps = {
   skeletonLabel?: string;
   schedule: {
@@ -73,7 +75,7 @@ type AvailabilitySettingsProps = {
     workingHours: WorkingHours[];
     dateOverrides: { ranges: TimeRange[] }[];
     timeZone: string;
-    schedule: Schedule[];
+    schedule: Availability[];
   };
   travelSchedules?: RouterOutputs["viewer"]["getTravelSchedules"];
   handleDelete: () => void;
@@ -86,6 +88,8 @@ type AvailabilitySettingsProps = {
   handleSubmit: (data: AvailabilityFormValues) => Promise<void>;
   isPlatform?: boolean;
   customClassNames?: CustomClassNames;
+  disableEditableHeading?: boolean;
+  enableOverrides?: boolean;
 };
 
 const DeleteDialogButton = ({
@@ -230,6 +234,8 @@ export function AvailabilitySettings({
   handleSubmit,
   isPlatform = false,
   customClassNames,
+  disableEditableHeading = false,
+  enableOverrides = false,
 }: AvailabilitySettingsProps) {
   const [openSidebar, setOpenSidebar] = useState(false);
   const { t, i18n } = useLocale();
@@ -240,6 +246,20 @@ export function AvailabilitySettings({
       schedule: schedule.availability || [],
     },
   });
+
+  useEffect(() => {
+    const subscription = form.watch(
+      (value, { name }) => {
+        if (!!name && name.split(".")[0] !== "schedule" && name !== "name")
+          handleSubmit(value as AvailabilityFormValues);
+      },
+      {
+        ...schedule,
+        schedule: schedule.availability || [],
+      }
+    );
+    return () => subscription.unsubscribe();
+  }, [form.watch]);
 
   const [Shell, Schedule, TimezoneSelect] = useMemo(() => {
     return isPlatform
@@ -260,6 +280,7 @@ export function AvailabilitySettings({
             <EditableHeading
               className={cn(customClassNames?.editableHeadingClassName)}
               isReady={!isLoading}
+              disabled={disableEditableHeading}
               {...field}
               data-testid="availablity-title"
             />
@@ -271,7 +292,9 @@ export function AvailabilitySettings({
           schedule.schedule
             .filter((availability) => !!availability.days.length)
             .map((availability) => (
-              <span key={availability.id} className={cn(customClassNames?.subtitlesClassName)}>
+              <span
+                key={availability.startTime.valueOf().toString()}
+                className={cn(customClassNames?.subtitlesClassName)}>
                 {availabilityAsString(availability, { locale: i18n.language, hour12: timeFormat === 12 })}
                 <br />
               </span>
@@ -475,6 +498,7 @@ export function AvailabilitySettings({
                     control={form.control}
                     name="schedule"
                     userTimeFormat={timeFormat}
+                    handleSubmit={handleSubmit}
                     weekStart={
                       ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"].indexOf(
                         weekStart
@@ -484,23 +508,17 @@ export function AvailabilitySettings({
                 )}
               </div>
             </div>
-            {!isPlatform ? (
-              <div className="border-subtle my-6 rounded-md border">
-                {schedule?.workingHours && (
-                  <DateOverride
-                    workingHours={schedule.workingHours}
-                    userTimeFormat={timeFormat}
-                    travelSchedules={travelSchedules}
-                    weekStart={
-                      ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"].indexOf(
-                        weekStart
-                      ) as 0 | 1 | 2 | 3 | 4 | 5 | 6
-                    }
-                  />
-                )}
-              </div>
-            ) : (
-              <></>
+            {enableOverrides && (
+              <DateOverride
+                workingHours={schedule.workingHours}
+                userTimeFormat={timeFormat}
+                travelSchedules={travelSchedules}
+                weekStart={
+                  ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"].indexOf(
+                    weekStart
+                  ) as 0 | 1 | 2 | 3 | 4 | 5 | 6
+                }
+              />
             )}
           </div>
           <div className="min-w-40 col-span-3 hidden space-y-2 md:block lg:col-span-1">

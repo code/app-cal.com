@@ -17,7 +17,7 @@ export type API_ERROR_CODES_TYPE = (typeof API_ERROR_CODES)[number];
 export type ErrorType = {
   code: API_ERROR_CODES_TYPE | string;
   message?: string;
-  details?: string | string[];
+  details?: string | string[] | object;
 };
 
 export type ApiErrorResponse = {
@@ -54,4 +54,19 @@ export class Pagination {
   @Max(100)
   @IsOptional()
   offset?: number | null;
+}
+
+export class SkipTakePagination {
+  @Transform(({ value }: { value: string }) => value && parseInt(value))
+  @IsNumber()
+  @Min(1)
+  @Max(250)
+  @IsOptional()
+  take?: number;
+
+  @Transform(({ value }: { value: string }) => value && parseInt(value))
+  @IsNumber()
+  @Min(0)
+  @IsOptional()
+  skip?: number;
 }
